@@ -1,3 +1,4 @@
 # operating-systems-laboratories
 
-### Lab1 - Skrypty bashowe do zarządzania plikami
+### Lab1 - Zarządzanie plikami
+### Lab2 - Dowiązania symboliczne i uprawnienia plików
