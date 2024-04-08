@@ -21,7 +21,7 @@ Ten skrypt napisany w Bashu umożliwia tworzenie dowiązań symbolicznych w opar
 ## Przykład użycia
 
 ```bash
-./symbolic_link_creator.sh /ścieżka/do/katalogu/źródłowego /ścieżka/do/katalogu/docelowego
+./script.sh /ścieżka/do/katalogu/źródłowego /ścieżka/do/katalogu/docelowego
 ```
 
 ## Uwagi
