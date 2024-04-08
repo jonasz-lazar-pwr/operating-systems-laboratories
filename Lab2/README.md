@@ -31,3 +31,31 @@ Ten skrypt napisany w Bashu umożliwia tworzenie dowiązań symbolicznych w opar
 
 
 # Part2
+
+## Opis
+
+Skrypt w Bashu służący do zarządzania uprawnieniami plików w zadanym katalogu. Realizuje następujące funkcje:
+
+- Odbiera uprawnienia do edytowania dla właściciela i innych (owner, others) plikom regularnym z rozszerzeniem .bak.
+- Pozwala jedynie innym (others) wchodzić do środka katalogu z rozszerzeniem .bak.
+- Pozwala każdemu tworzyć i usuwać tylko jego pliki w katalogach z rozszerzeniem .tmp.
+- Ustawia uprawnienia dla plików z rozszerzeniem .txt tak, aby tylko właściciele (owners) mogli czytać, grupa właścicieli (group) mogła edytować, a inni (others) mogli wykonywać - bez innych uprawnień.
+- Pozwala wszystkim wykonywać pliki regularne z rozszerzeniem .exe, ale zawsze z uprawnieniami właściciela.
+
+## Sposób użycia
+
+1. Uruchom skrypt `script.sh`.
+2. Podaj ścieżkę do katalogu źródłowego
+3. Skrypt automatycznie przetwarza pliki i katalogi w podanym katalogu, ustawiając odpowiednie uprawnienia zgodnie z opisem funkcji.
+
+## Przykład użycia
+
+```bash
+./script.sh /ścieżka/do/katalogu/źródłowego
+```
+
+## Uwagi
+
+- Jeśli zadane katalogi nie istnieją, program zakończy działanie z błędem.
+- W przypadku braku podanych parametrów, użytkownik zostanie poinformowany, a skrypt zakończy działanie z błędem.
+- Podane ścieżki mogą być wielokrotnie zagłębione, mogą być podane jako ścieżki względne lub bezwzględne.

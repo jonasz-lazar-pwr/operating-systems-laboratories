@@ -1,131 +1,90 @@
 #!/bin/env bash
 
+# Ustawienie flagi -eu
 set -eu
 
-# Sprawdzenie, czy podano dwa parametry
-if [[ "${#}" -ne 2 ]]; then
-    echo "Błąd: Skrypt wymaga podania dwóch parametrów - ścieżek do katalogów."
+# Sprawdzenie czy podano parametr
+if [[ "${#}" -eq 0 ]]; then
+    echo "Nie podano ścieżki jako parametru."
     exit 1
 fi
 
-# Sprawdzenie istnienia podanych katalogów
-if [[ ! -d "${1}" ]] || [[ ! -d "${2}" ]]; then
-    echo "Błąd: Podane katalogi nie istnieją."
+# Pobranie ścieżki katalogu
+directory=$(realpath "$1")
+
+# Sprawdzenie czy podana ścieżka istnieje i jest katalogiem
+if [[ ! -d "${directory}" ]]; then
+    echo "Podana ścieżka nie istnieje lub nie jest katalogiem: ${directory}"
     exit 1
 fi
 
-# Funkcja do tworzenia dowiązań symbolicznych
-create_symlinks() {
-    local source_dir="${1}"
-    local target_dir="${2}"
+# Funkcja do ustawiania uprawnień dla katalogów
+set_permissions_dir() {
+    local path="${1}"
+    local extension="${2}"
 
-    # Przejście przez wszystkie pliki w źródłowym katalogu
-    for file in "${source_dir}"/*; do
-        # Tworzenie dowiązania symbolicznego tylko dla plików regularnych
-        if [[ -f "${file}" ]]; then
-            # Pobranie pełnej nazwy pliku
-            filename=$(basename "${file}")
+    # Ustawienie uprawnień dla .bak
+    if [[ "${extension}" = "bak" ]]; then
+        chmod o+x "${path}"  # Pozwala innym wchodzić do środka tylko w katalogu z rozszerzeniem .bak
+        chmod o-rwx "${path}"  # Odbieranie uprawnień do edytowania dla innych w katalogu .bak
+    fi
 
-            # Pobranie rozszerzenia pliku
-            extension="${filename##*.}"
+    # Ustawienie uprawnień dla .tmp
+    if [[ "${extension}" = "tmp" ]]; then
+        chmod o+wx "${path}"  # Pozwala każdemu tworzyć i usuwać tylko jego pliki w katalogu .tmp
+    fi
+}
 
-            # Pobranie nazwy pliku bez rozszerzenia
-            filename_no_ext="${filename%.*}"
+# Funkcja do ustawiania uprawnień dla plików
+set_permissions_file() {
+    local path="${1}"
+    local extension="${2}"
 
-            # Zmiana na WIELKIE LITERY
-            filename_uppercase=$(echo "${filename_no_ext}" | tr '[:lower:]' '[:upper:]')
+    # Ustawienie uprawnień dla .bak
+    if [[ "${extension}" = "bak" ]]; then
+        chmod u-w "${path}"  # Odbieranie uprawnień do edytowania właścicielowi
+        chmod o-w "${path}"  # Odbieranie uprawnień do edytowania innym
+    fi
 
-            # Jeśli istnieje rozszerzenie, dodaj je do nazwy dowiązania symbolicznego
-            if [[ -n "${extension}" && "${extension}" != "${filename}" ]]; then
-                symlink_name="${filename_uppercase}_ln.${extension}"
-            else
-                # Jeśli nie ma rozszerzenia, użyj tylko nazwy pliku
-                symlink_name="${filename_uppercase}_ln"
-            fi
+    # Ustawienie uprawnień dla .txt
+    if [[ "${extension}" = "txt" ]]; then
+        chmod u=r,g=w,o=x "${path}"  # Właściciele czytają, grupa edytuje, inni mogą wykonywać
+    fi
 
-            # Sprawdzenie, czy plik docelowy nie istnieje
-            if [[ ! -e "${target_dir}/${symlink_name}" ]]; then
-                # Tworzenie dowiązania symbolicznego
-                ln -s "$(realpath "${file}")" "${target_dir}/${symlink_name}"
-            else
-                echo "Plik docelowy ${target_dir}/${symlink_name} już istnieje. Pomijanie..."
-            fi
+    # Ustawienie uprawnień dla .exe
+    if [[ "${extension}" = "exe" ]]; then
+        chmod u+x "${path}"  # Wykonywalne dla właściciela
+    fi
+}
 
-        # Tworzenie dowiązania symbolicznego do katalogu
-        elif [[ -d "${file}" ]]; then
+# Przetwarzanie plików i katalogów
+process_directory() {
+    local dir="${1}"
+
+    # Pętla po elementach w katalogu
+    for item in "${dir}"/*; do
+        if [[ -d "${item}" ]]; then
             # Pobranie nazwy katalogu
-            dirname=$(basename "${file}")
-
-            # Zmiana na WIELKIE LITERY
-            dirname_uppercase=$(echo "${dirname}" | tr '[:lower:]' '[:upper:]')
-
-            # Dodanie sufiksu "_ln"
-            symlink_name="${dirname_uppercase}_ln"
-
-            # Sprawdzenie, czy plik docelowy nie istnieje
-            if [[ ! -e "${target_dir}/${symlink_name}" ]]; then
-                # Tworzenie dowiązania symbolicznego dla katalogów
-                ln -s "$(realpath "${file}")" "${target_dir}/${symlink_name}"
-            else
-                echo "Plik docelowy ${target_dir}/${symlink_name} już istnieje. Pomijanie..."
-            fi
-
-        # Tworzenie dowiązania symbolicznego do dowiązania symbolicznego
-        elif [[ -L "${file}" ]]; then
-            # Pobranie nazwy dowiązania symbolicznego
-            linkname=$(basename "${file}")
-
-            # Pobranie nazwy pliku bez rozszerzenia
-            linkname_no_ext="${linkname%.*}"
+            dirname=$(basename "${item}")
 
             # Pobranie rozszerzenia
-            extension="${linkname##*.}"
+            extension="${dirname##*.}"
+            
+            set_permissions_dir "${item}" "${extension}"
 
-            # Zmiana na WIELKIE LITERY
-            linkname_uppercase=$(echo "${linkname_no_ext}" | tr '[:lower:]' '[:upper:]')
+            # Rekurencyjne przetwarzanie podkatalogów
+            process_directory "${item}"
+        elif [[ -f "${item}" ]]; then
+            # Pobranie nazwy pliku
+            filename=$(basename "${item}")
 
-            # Sprawdzenie, czy istnieje rozszerzenie
-            if [[ -n "${extension}" ]]; then
-                # Jeżeli istnieje rozszerzenie, tworzymy nazwę docelową z rozszerzeniem
-                symlink_name="${linkname_uppercase}_ln.${extension}"
-            else
-                # Jeżeli brak rozszerzenia, tworzymy nazwę docelową bez rozszerzenia
-                symlink_name="${linkname_uppercase}_ln"
-            fi
+            # Pobranie rozszerzenia
+            extension="${filename##*.}"
 
-            # Sprawdzenie, czy plik docelowy nie istnieje
-            if [[ ! -e "${target_dir}/${symlink_name}" ]]; then
-                # Tworzenie dowiązania symbolicznego dla istniejących dowiązań symbolicznych
-                ln -s "$(readlink "${file}")" "${target_dir}/${symlink_name}"
-            else
-                echo "Plik docelowy ${target_dir}/${symlink_name} już istnieje. Pomijanie..."
-            fi
+            set_permissions_file "${item}" "${extension}"
         fi
     done
 }
 
-# Wyświetlanie informacji o plikach w katalogu źródłowym
-echo "Informacje o plikach w katalogu ${1}:"
-for file in "${1}"/*; do
-    if [[ -d "${file}" ]]; then
-        if [[ -L "${file}" ]]; then
-            echo "$(basename "${file}") - Dowiązanie symboliczne do katalogu"
-        else 
-            echo "$(basename "${file}") - Katalog"
-        fi
-
-    elif [[ -f "${file}" ]]; then
-        if [[ -L "${file}" ]]; then
-            echo "$(basename "${file}") - Dowiązanie symboliczne do pliku regularnego"
-        else 
-            echo "$(basename "${file}") - Plik regularny"
-        fi
-    else
-        echo "$(basename "${file}") - Nieznany typ pliku"
-    fi
-done
-
-# Wywołanie funkcji do tworzenia dowiązań symbolicznych
-create_symlinks "${1}" "${2}"
-
-echo "Dowiązania symboliczne zostały utworzone w katalogu ${2}."
+# Uruchomienie funkcji dla podanego katalogu
+process_directory "${directory}"
